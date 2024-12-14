@@ -1,4 +1,6 @@
-﻿namespace ElectionResultPj
+﻿using ElectionResultPj.Models;
+
+namespace ElectionResultPj
 {
     public class Program
     {
@@ -6,8 +8,7 @@
 
         static void Main(string[] args)
         {
-            var fileProcessor = new FileProcessor();
-            _data = fileProcessor.ReadFileData();
+            _data = FileProcessor.ReadDataFromFile();
 
             Console.WriteLine("Select from the menu.");
             Console.WriteLine("1. List all MPs\n2. List all Parties.\n3. Get MP details.\n4. Get Constituency details.");
@@ -19,21 +20,24 @@
             DisplayResponse(response);
         }
 
-        static ResponseModel QueryFileData(string optionIndex)
+        static object QueryFileData(string optionIndex)
         {
-            ResponseModel response = new ResponseModel();
-            ElectionDataModel electionModel = new ElectionDataModel();
+            var electionModel = new ElectionDataModel();
 
             switch (optionIndex)
             {
                 case "1":
-                    var mpModels = _data.Select(d => new MpModel { FirstName = d.Memberfirstname, LastName = d.Membersurname, Gender = d.Membergender });
-                    response.Mps = mpModels.ToList();
-                    break;
+                    var mpModels = _data.Select(d => new MpModel 
+                    { 
+                        MpFirstName = d.Memberfirstname, 
+                        MpLastName = d.Membersurname, 
+                        MpGender = d.Membergender,
+                        Constituency = new ConstituencyModel { ConstituencyName = d.Constituencyname },
+                    });
+                    return mpModels.ToList();
                 case "2":
-                    var partyModels = _data.Select(d => new PartyModel { Name = d.Firstparty }).DistinctBy(p => p.Name);
-                    response.Parties = partyModels.ToList();
-                    break;
+                    var partyModels = _data.Select(d => new PartyModel { PartyName = d.Firstparty }).DistinctBy(p => p.PartyName);
+                    return partyModels.ToList();
                 case "3":
                     Console.WriteLine("Enter MP Firstname.");
                     var mpFirstName = Console.ReadLine();
@@ -51,11 +55,12 @@
 
                     if (electionModel is not null)
                     {
-                        response.Mp = new MpModel
+                        return new MpModel
                         {
-                            FirstName = electionModel.Memberfirstname,
-                            LastName = electionModel.Membersurname,
-                            Gender = electionModel.Membergender
+                            MpFirstName = electionModel.Memberfirstname,
+                            MpLastName = electionModel.Membersurname,
+                            MpGender = electionModel.Membergender,
+                            Constituency = new ConstituencyModel { ConstituencyName = electionModel.Constituencyname },
                         };
                     }
                     break;
@@ -73,17 +78,26 @@
 
                     if (electionModel is not null)
                     {
-                        response.Constituency = new ConstituencyModel
+                        return new ConstituencyModel
                         {
-                            Name = electionModel.Constituencyname,
-                            Region = electionModel.Regionname,
-                            Country = electionModel.Countryname,
-                            Type = electionModel.Constituencytype,
-                            Mp = new MpModel 
-                            { 
-                                FirstName = electionModel.Memberfirstname,
-                                LastName = electionModel.Membersurname,
-                                Gender = electionModel.Membergender,
+                            ConstituencyName = electionModel.Constituencyname,
+                            RegionName = electionModel.Regionname,
+                            CountryName = electionModel.Countryname,
+                            ConstituencyType = electionModel.Constituencytype,
+                            Mp = new MpModel
+                            {
+                                MpFirstName = electionModel.Memberfirstname,
+                                MpLastName = electionModel.Membersurname,
+                                MpGender = electionModel.Membergender,
+                            },
+                            Result = new ResultModel
+                            {
+                                FirstParty = new PartyModel { PartyName = electionModel.Firstparty },
+                                SecondParty = new PartyModel { PartyName = electionModel.Secondparty },
+                                ValidVotes = electionModel.Validvotes,
+                                InvalidVotes = electionModel.Invalidvotes,
+                                Result = electionModel.Result,
+                                Electorate = electionModel.Electorate
                             }
                         };
                     }
@@ -93,43 +107,59 @@
                     break;
             }
 
-            return response;
+            return null;
         }
 
-        static void DisplayResponse(ResponseModel model)
+        static void DisplayResponse(object model)
         {
-            if (model.Mps is not null && model.Mps.Any())
+            if (model is List<MpModel> mpModels)
             {
                 Console.WriteLine("\tFirstName\tLastName\tGender");
                 var counter = 1;
-                foreach (var mp in model.Mps)
+                foreach (var mp in mpModels)
                 {
-                    Console.WriteLine($"{counter}\t{mp.FirstName}\t{mp.LastName}\t{mp.Gender}");
+                    Console.WriteLine($"{counter}\t{mp.MpFirstName}\t{mp.MpLastName}\t{mp.MpGender}");
                     counter++;
                 }
+
+                Console.WriteLine($"Saving {mpModels.Count} records to {FileProcessor.OutputFileDirectory}");
+
+                FileProcessor.WriteDataToFile(mpModels);
             }
 
-            if (model.Parties is not null && model.Parties.Any())
+            if (model is List<PartyModel> partyModels)
             {
                 Console.WriteLine("\tName");
                 var counter = 1;
-                foreach (var party in model.Parties)
+                foreach (var party in partyModels)
                 {
-                    Console.WriteLine($"{counter}\t{party.Name}");
+                    Console.WriteLine($"{counter}\t{party.PartyName}");
                     counter++;
                 }
+
+                Console.WriteLine($"Saving {partyModels.Count} records to {FileProcessor.OutputFileDirectory}");
+
+                FileProcessor.WriteDataToFile(partyModels);
             }
 
-            if (model.Mp is not null)
+            if (model is MpModel mpModel)
             {
                 Console.WriteLine("FirstName\tLastName\tGender");
-                Console.WriteLine($"{model.Mp.FirstName}\t{model.Mp.LastName}\t{model.Mp.Gender}");
+                Console.WriteLine($"{mpModel.MpFirstName}\t{mpModel.MpLastName}\t{mpModel.MpGender}");
+
+                Console.WriteLine($"Saving 1 record to {FileProcessor.OutputFileDirectory}");
+
+                FileProcessor.WriteDataToFile(new List<MpModel> { mpModel });
             }
 
-            if (model.Constituency is not null)
+            if (model is ConstituencyModel constituencyModel)
             {
-                Console.WriteLine($"{model.Constituency.Name}\n{model.Constituency.Country}\n{model.Constituency.Region}\n{model.Constituency.Type}" +
-                    $"\n{model.Constituency.Mp.FirstName}");
+                Console.WriteLine($"{constituencyModel.ConstituencyName}\n{constituencyModel.CountryName}\n{constituencyModel.RegionName}\n{constituencyModel.ConstituencyType}" +
+                    $"\n{constituencyModel.Mp.MpFirstName}\n{constituencyModel.Mp.MpLastName}");
+
+                Console.WriteLine($"Saving 1 record to {FileProcessor.OutputFileDirectory}");
+
+                FileProcessor.WriteDataToFile(new List<ConstituencyModel> { constituencyModel });
             }
         }
     }

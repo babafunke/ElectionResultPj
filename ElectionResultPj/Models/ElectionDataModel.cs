@@ -1,4 +1,4 @@
-﻿namespace ElectionResultPj
+﻿namespace ElectionResultPj.Models
 {
     public class ElectionDataModel
     {
