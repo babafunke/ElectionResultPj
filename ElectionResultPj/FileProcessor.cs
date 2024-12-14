@@ -5,7 +5,7 @@ using System.Globalization;
 
 namespace ElectionResultPj
 {
-    public class FileProcessor
+    public class FileProcessor<T>
     {
         public static readonly string InputFileDirectory = @"C:\Projectdata.csv";
         public static readonly string OutputFileDirectory = @"C:\ElectionResultsPj\OutputFiles";
@@ -25,7 +25,7 @@ namespace ElectionResultPj
             }
         }
 
-        public static void WriteDataToFile(IEnumerable<object> records)
+        public static void WriteDataToFile(IEnumerable<T> records)
         {
             var filename = Guid.NewGuid().ToString();
 
